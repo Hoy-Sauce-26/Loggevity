@@ -119,6 +119,18 @@ class MetricsRepository {
   Stream<WeeklyMetrics> watchWeek(WeekRange week) =>
       _entriesIn(week).watch().map((rows) => _score(week, rows));
 
+  /// The local date of the earliest entry, or null when nothing is logged.
+  /// Bounds how far back the sealing engine has to walk.
+  Future<DateTime?> earliestEntryDate() async {
+    final query = db.select(db.dailyEntries)
+      ..orderBy([(t) => OrderingTerm.asc(t.localDate)])
+      ..limit(1);
+    final row = await query.getSingleOrNull();
+    if (row == null) return null;
+    final parts = row.localDate.split('-').map(int.parse).toList();
+    return DateTime(parts[0], parts[1], parts[2]);
+  }
+
   Future<WeeklyMetrics> loadWeek(WeekRange week) async =>
       _score(week, await _entriesIn(week).get());
 

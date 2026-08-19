@@ -35,7 +35,7 @@ class CategoryProgressTile extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -45,13 +45,13 @@ class CategoryProgressTile extends StatelessWidget {
                     size: 20, color: colour),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text(category.label,
-                      style: theme.textTheme.titleSmall),
+                  child:
+                      Text(category.label, style: theme.textTheme.titleSmall),
                 ),
                 Text(
                   formatAmount(category, rawAmount),
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant),
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                 ),
                 const SizedBox(width: 10),
                 Text(

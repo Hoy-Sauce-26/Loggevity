@@ -19,7 +19,8 @@ class ScoreRing extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final negative = percent < 0;
-    final colour = negative ? theme.colorScheme.error : theme.colorScheme.primary;
+    final colour =
+        negative ? theme.colorScheme.error : theme.colorScheme.primary;
     final progress = (percent / 100).clamp(0.0, 1.0);
 
     return SizedBox(

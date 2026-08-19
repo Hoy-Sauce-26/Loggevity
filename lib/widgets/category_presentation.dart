@@ -17,15 +17,23 @@ class QuickLogOption {
 /// The increments are deliberately coarse: the point of the sheet is to log a
 /// walk in one tap on the way through the door, not to record it precisely.
 class CategoryPresentation {
-  const CategoryPresentation(this.icon, this.quickOptions);
+  const CategoryPresentation(this.icon, this.colour, this.quickOptions);
 
   final IconData icon;
+
+  /// Identity colour for charts. Fixed rather than theme-derived: seven
+  /// categories need to stay distinguishable from each other, which a Material
+  /// scheme's handful of roles cannot guarantee. Mid-tone values chosen to
+  /// hold contrast against both light and dark surfaces.
+  final Color colour;
+
   final List<QuickLogOption> quickOptions;
 }
 
 const categoryPresentation = <ActivityCategory, CategoryPresentation>{
   ActivityCategory.moderatePA: CategoryPresentation(
     Icons.directions_walk,
+    Color(0xFF2E8B78),
     [
       QuickLogOption('+15m', 15),
       QuickLogOption('+30m', 30),
@@ -35,6 +43,7 @@ const categoryPresentation = <ActivityCategory, CategoryPresentation>{
   ),
   ActivityCategory.vigorousPA: CategoryPresentation(
     Icons.directions_run,
+    Color(0xFFE0784A),
     [
       QuickLogOption('+10m', 10),
       QuickLogOption('+20m', 20),
@@ -43,6 +52,7 @@ const categoryPresentation = <ActivityCategory, CategoryPresentation>{
   ),
   ActivityCategory.resistance: CategoryPresentation(
     Icons.fitness_center,
+    Color(0xFF6272C4),
     [
       QuickLogOption('+15m', 15),
       QuickLogOption('+30m', 30),
@@ -51,6 +61,7 @@ const categoryPresentation = <ActivityCategory, CategoryPresentation>{
   ),
   ActivityCategory.flexibility: CategoryPresentation(
     Icons.self_improvement,
+    Color(0xFF9B72C6),
     [
       QuickLogOption('+10m', 10),
       QuickLogOption('+15m', 15),
@@ -59,6 +70,7 @@ const categoryPresentation = <ActivityCategory, CategoryPresentation>{
   ),
   ActivityCategory.nature: CategoryPresentation(
     Icons.park_outlined,
+    Color(0xFF6BA557),
     [
       QuickLogOption('+15m', 15),
       QuickLogOption('+30m', 30),
@@ -67,6 +79,7 @@ const categoryPresentation = <ActivityCategory, CategoryPresentation>{
   ),
   ActivityCategory.socializing: CategoryPresentation(
     Icons.people_outline,
+    Color(0xFFD3A03F),
     [
       QuickLogOption('+30m', 0.5),
       QuickLogOption('+1h', 1),
@@ -78,6 +91,7 @@ const categoryPresentation = <ActivityCategory, CategoryPresentation>{
   // a night's length instead of nudging a total upward.
   ActivityCategory.sleep: CategoryPresentation(
     Icons.bedtime_outlined,
+    Color(0xFF4E93AC),
     [
       QuickLogOption('6h', 6),
       QuickLogOption('7h', 7),
@@ -106,5 +120,4 @@ String _trim(double v) {
 
 /// Sub-scores print to one decimal, with an explicit sign when negative so a
 /// penalty never reads as a small positive.
-String formatSubScore(double subScore) =>
-    '${subScore.toStringAsFixed(1)}/10';
+String formatSubScore(double subScore) => '${subScore.toStringAsFixed(1)}/10';

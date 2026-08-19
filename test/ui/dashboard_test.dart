@@ -131,8 +131,7 @@ void main() {
   });
 
   group('quick log sheet', () {
-    testWidgets('opens from the FAB and offers every category',
-        (tester) async {
+    testWidgets('opens from the FAB and offers every category', (tester) async {
       await withDashboard(tester, () async {
         await tester.tap(find.text('Log'));
         await tester.pumpAndSettle();

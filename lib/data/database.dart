@@ -104,6 +104,40 @@ class AppDatabase extends _$AppDatabase {
   Future<AppSetting> loadSettings() =>
       (select(appSettings)..where((t) => t.id.equals(0))).getSingle();
 
+  /// Writes a week's snapshot, replacing any existing row for that week.
+  ///
+  /// Keyed on [WeeklySnapshots.weekStartDate], which is unique, so re-sealing
+  /// a week updates it in place rather than accumulating duplicates.
+  Future<void> upsertSnapshot(WeeklySnapshotsCompanion snapshot) {
+    return into(weeklySnapshots).insert(
+      snapshot,
+      onConflict: DoUpdate(
+        (_) => snapshot,
+        target: [weeklySnapshots.weekStartDate],
+      ),
+    );
+  }
+
+  /// Sealed weeks, oldest first, optionally limited to those starting on or
+  /// after [from].
+  Stream<List<WeeklySnapshot>> watchSnapshots({DateTime? from}) {
+    final query = select(weeklySnapshots)
+      ..orderBy([(t) => OrderingTerm.asc(t.weekStartDate)]);
+    if (from != null) {
+      query.where((t) => t.weekStartDate.isBiggerOrEqualValue(from));
+    }
+    return query.watch();
+  }
+
+  Future<List<WeeklySnapshot>> loadSnapshots({DateTime? from}) {
+    final query = select(weeklySnapshots)
+      ..orderBy([(t) => OrderingTerm.asc(t.weekStartDate)]);
+    if (from != null) {
+      query.where((t) => t.weekStartDate.isBiggerOrEqualValue(from));
+    }
+    return query.get();
+  }
+
   Future<void> setWeekStartDay(int weekday) {
     assert(weekday >= DateTime.monday && weekday <= DateTime.sunday);
     return (update(appSettings)..where((t) => t.id.equals(0)))

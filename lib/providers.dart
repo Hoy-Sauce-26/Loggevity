@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'data/database.dart';
 import 'data/metrics_repository.dart';
 import 'data/week.dart';
+import 'data/week_sealer.dart';
 
 /// Overridden in tests with an in-memory executor.
 final databaseProvider = Provider<AppDatabase>((ref) {
@@ -44,4 +45,24 @@ final currentWeekRangeProvider = Provider<WeekRange>((ref) {
 final currentWeekProvider = StreamProvider<WeeklyMetrics>((ref) {
   final repo = ref.watch(metricsRepositoryProvider);
   return repo.watchWeek(ref.watch(currentWeekRangeProvider));
+});
+
+final weekSealerProvider = Provider<WeekSealer>((ref) {
+  return WeekSealer(
+    ref.watch(databaseProvider),
+    ref.watch(metricsRepositoryProvider),
+  );
+});
+
+/// Seals any weeks that ended while the app was closed.
+///
+/// Launch is the only reliable trigger: with no background execution there is
+/// nothing running at midnight on the week boundary to notice it passed.
+final sealOnLaunchProvider = FutureProvider<int>((ref) {
+  return ref.watch(weekSealerProvider).sealCompletedWeeks();
+});
+
+/// Sealed weeks, oldest first.
+final snapshotsProvider = StreamProvider<List<WeeklySnapshot>>((ref) {
+  return ref.watch(databaseProvider).watchSnapshots();
 });

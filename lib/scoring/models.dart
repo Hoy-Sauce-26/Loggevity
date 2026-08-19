@@ -44,8 +44,7 @@ class WeeklyTotals {
         ActivityCategory.flexibility => flexibilityMinutes,
         ActivityCategory.nature => natureMinutes,
         ActivityCategory.socializing => socializingHours,
-        ActivityCategory.sleep =>
-          sleepHoursPerNight.fold(0.0, (a, b) => a + b),
+        ActivityCategory.sleep => sleepHoursPerNight.fold(0.0, (a, b) => a + b),
       };
 }
 

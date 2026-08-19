@@ -6,6 +6,10 @@ import '../providers.dart';
 import '../widgets/category_progress_tile.dart';
 import '../widgets/quick_log_sheet.dart';
 import '../widgets/score_ring.dart';
+import 'analytics_page.dart';
+
+/// Horizontal space the extended "Log" button occupies, including its margin.
+const double _logButtonReserve = 104;
 
 const _weekdayNames = <int, String>{
   DateTime.monday: 'Monday',
@@ -23,11 +27,24 @@ class DashboardPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final weekAsync = ref.watch(currentWeekProvider);
+    // Seals any week that ended while the app was closed. Watched rather than
+    // fired-and-forgotten so a failure surfaces instead of silently leaving
+    // history unwritten.
+    ref.watch(sealOnLaunchProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Loggevity'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.insights_outlined),
+            tooltip: 'Trends',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const AnalyticsPage(),
+              ),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.calendar_today_outlined),
             tooltip: 'Week starts on',
@@ -94,7 +111,7 @@ class _WeekView extends StatelessWidget {
     final complete = metrics.daysElapsed == 7;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 96),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
       children: [
         Center(
           child: ScoreRing(
@@ -122,7 +139,7 @@ class _WeekView extends StatelessWidget {
             ),
           ),
         ],
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
         Row(
           children: [
             Text('This week', style: theme.textTheme.titleMedium),
@@ -138,22 +155,50 @@ class _WeekView extends StatelessWidget {
         // Bars track actual progress toward the full week, so they read as a
         // tally; the ring above answers the different question of whether the
         // week is on track so far.
-        for (final score in metrics.full.categories)
-          CategoryProgressTile(
-            category: score.category,
-            subScore: score.subScore,
-            rawAmount: metrics.totals.rawFor(score.category),
-          ),
+        //
+        ..._categoryRows(metrics),
       ],
     );
+  }
+
+  /// One full-width row per category, in order.
+  ///
+  /// The floating Log button covers the bottom-right corner, so the final row
+  /// is inset to stop short of it. Only that row pays the cost - the other six
+  /// keep the full width for their labels and bars.
+  List<Widget> _categoryRows(WeeklyMetrics metrics) {
+    final scores = metrics.full.categories;
+    return [
+      for (var i = 0; i < scores.length; i++)
+        Padding(
+          padding: EdgeInsets.only(
+            right: i == scores.length - 1 ? _logButtonReserve : 0,
+          ),
+          child: CategoryProgressTile(
+            category: scores[i].category,
+            subScore: scores[i].subScore,
+            rawAmount: metrics.totals.rawFor(scores[i].category),
+          ),
+        ),
+    ];
   }
 
   String _rangeLabel(WeeklyMetrics m) {
     final start = m.week.start;
     final end = m.week.lastDay;
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     final from = '${months[start.month - 1]} ${start.day}';
     final to = start.month == end.month
