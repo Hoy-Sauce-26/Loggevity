@@ -13,7 +13,7 @@ void main() {
 /// with nothing else overridden, so every surface including the scaffold
 /// background is derived the same way - but uses its own hue. Setting any
 /// colour by hand here would break that derivation.
-const _seed = Color(0xFFBB67FF);
+const _seed = Color(0xFFC067FF);
 
 class LoggevityApp extends StatelessWidget {
   const LoggevityApp({super.key});
