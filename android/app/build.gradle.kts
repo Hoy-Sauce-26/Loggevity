@@ -14,6 +14,14 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    buildFeatures {
+        // AGP 9 made resValues opt-in, the way AGP 8 did for buildConfig.
+        // Without this, the resValue() calls below fail configuration with
+        // "defaultConfig contains custom resource values, but the feature is
+        // disabled".
+        resValues = true
+    }
+
     defaultConfig {
         // Release identity. Debug and profile builds append ".dev" below, so a
         // local build installs alongside a released one instead of replacing
@@ -25,16 +33,19 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        resValue("string", "app_name", "Loggevity")
     }
 
     buildTypes {
         debug {
             applicationIdSuffix = ".dev"
             versionNameSuffix = "-dev"
+            resValue("string", "app_name", "Loggevity Dev")
         }
         getByName("profile") {
             applicationIdSuffix = ".dev"
             versionNameSuffix = "-dev"
+            resValue("string", "app_name", "Loggevity Dev")
         }
         release {
             // TODO: Add your own signing config for the release build.
