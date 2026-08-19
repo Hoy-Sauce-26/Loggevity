@@ -13,9 +13,14 @@ dependencies:
 
   # Local storage
   drift: ^2.20.0
-  sqlite3_flutter_libs: ^0.5.0
+  sqlcipher_flutter_libs: ^0.6.0
+  sqlite3: ^2.4.0
+  flutter_secure_storage: ^9.2.2
   path_provider: ^2.1.0
   path: ^1.9.0
+
+  # State management
+  flutter_riverpod: ^3.4.2
 
 dev_dependencies:
   flutter_test:

@@ -34,6 +34,19 @@ class WeeklyTotals {
   /// Raw hours slept per night, one entry per logged night. Never store the
   /// penalty-adjusted total here - the adjustment is derived.
   final List<double> sleepHoursPerNight;
+
+  /// The raw logged amount for [c], in that category's own unit. Sleep
+  /// returns total raw hours across the week, not the adjusted figure.
+  double rawFor(ActivityCategory c) => switch (c) {
+        ActivityCategory.moderatePA => moderateMinutes,
+        ActivityCategory.vigorousPA => vigorousMinutes,
+        ActivityCategory.resistance => resistanceMinutes,
+        ActivityCategory.flexibility => flexibilityMinutes,
+        ActivityCategory.nature => natureMinutes,
+        ActivityCategory.socializing => socializingHours,
+        ActivityCategory.sleep =>
+          sleepHoursPerNight.fold(0.0, (a, b) => a + b),
+      };
 }
 
 /// One category's contribution to the composite.

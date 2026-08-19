@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:drift/drift.dart';
 
 import '../scoring/scoring.dart';
@@ -46,6 +44,9 @@ class MetricsRepository {
 
   final AppDatabase db;
   final DateTime Function() _clock;
+
+  /// The repository's notion of "now". Injectable so tests can pin the week.
+  DateTime now() => _clock();
 
   static const _calculator = HealthScoreCalculator();
 
@@ -118,13 +119,6 @@ class MetricsRepository {
   Stream<WeeklyMetrics> watchWeek(WeekRange week) =>
       _entriesIn(week).watch().map((rows) => _score(week, rows));
 
-  /// Scores the week containing "now", following the user's week-start
-  /// setting. Changing that setting re-buckets and re-emits.
-  Stream<WeeklyMetrics> watchCurrentWeek() {
-    return db.watchSettings().map((s) => s.weekStartDay).distinct().switchMap(
-        (day) => watchWeek(WeekRange.containing(_clock(), weekStartDay: day)));
-  }
-
   Future<WeeklyMetrics> loadWeek(WeekRange week) async =>
       _score(week, await _entriesIn(week).get());
 
@@ -167,36 +161,4 @@ class MetricsRepository {
 
   Future<int> deleteEntry(int id) =>
       (db.delete(db.dailyEntries)..where((t) => t.id.equals(id))).go();
-}
-
-/// Minimal `switchMap`: on each new outer value, cancel the previous inner
-/// subscription and listen to the new one. Avoids pulling in rxdart for the
-/// single place we need it.
-extension SwitchMap<T> on Stream<T> {
-  Stream<R> switchMap<R>(Stream<R> Function(T value) mapper) {
-    StreamSubscription<T>? outer;
-    StreamSubscription<R>? inner;
-    late StreamController<R> controller;
-
-    controller = StreamController<R>(
-      onListen: () {
-        outer = listen(
-          (value) {
-            inner?.cancel();
-            inner = mapper(value).listen(
-              controller.add,
-              onError: controller.addError,
-            );
-          },
-          onError: controller.addError,
-          onDone: () => controller.close(),
-        );
-      },
-      onCancel: () async {
-        await inner?.cancel();
-        await outer?.cancel();
-      },
-    );
-    return controller.stream;
-  }
 }

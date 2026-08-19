@@ -202,20 +202,13 @@ void main() {
     });
   });
 
-  group('watchCurrentWeek follows the week-start setting', () {
-    test('re-buckets when the user changes their start day', () async {
+  group('the current week follows the week-start setting', () {
+    test('resolves against the stored start day', () async {
       now = DateTime(2026, 7, 9, 12); // a Thursday
-      final starts = <String>[];
-      final sub =
-          repo.watchCurrentWeek().listen((m) => starts.add(m.week.startKey));
-      await pumpEventQueue();
-      expect(starts, ['2026-07-06']); // default Monday start
+      expect((await repo.currentWeek()).startKey, '2026-07-06');
 
       await db.setWeekStartDay(DateTime.sunday);
-      await pumpEventQueue();
-      await sub.cancel();
-
-      expect(starts, ['2026-07-06', '2026-07-05']);
+      expect((await repo.currentWeek()).startKey, '2026-07-05');
     });
 
     test('a mid-week log is scored on pace, not raw progress', () async {
@@ -224,11 +217,11 @@ void main() {
       for (var d = 6; d <= 8; d++) {
         await repo.log(
           category: ActivityCategory.socializing,
-          value: 3.0, // 21h/week ÷ 7
+          value: 3.0, // 21h/week / 7
           occurredAt: DateTime(2026, 7, d, 19),
         );
       }
-      final m = await repo.watchCurrentWeek().first;
+      final m = await repo.loadWeek(await repo.currentWeek());
       expect(m.daysElapsed, 3);
       // On pace: the category reads as fully on track.
       expect(m.pace[ActivityCategory.socializing].subScore, closeTo(10, 1e-9));
