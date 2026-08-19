@@ -7,9 +7,12 @@ void main() {
   runApp(const ProviderScope(child: LoggevityApp()));
 }
 
-/// Seed for the Material 3 palette. Loggevity shares Roamfree's approach - a
-/// single seed colour driving light and dark schemes - with its own hue.
-const _seed = Color(0xFF3E8E7E);
+/// Seed for the Material 3 palette, shared with Roamfree.
+///
+/// One seed drives both schemes and nothing else is overridden, so every
+/// surface - including the scaffold background - is derived the same way in
+/// both apps. Setting any colour by hand here would break that.
+const _seed = Color(0xFFBB67FF);
 
 class LoggevityApp extends StatelessWidget {
   const LoggevityApp({super.key});

@@ -1,4 +1,4 @@
-package com.loggevity.loggevity
+package com.nttech.loggevity
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.loggevity.loggevity"
+    namespace = "com.nttech.loggevity"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -15,8 +15,10 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.loggevity.loggevity"
+        // Release identity. Debug and profile builds append ".dev" below, so a
+        // local build installs alongside a released one instead of replacing
+        // it - and cannot read its database.
+        applicationId = "com.nttech.loggevity"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -26,6 +28,14 @@ android {
     }
 
     buildTypes {
+        debug {
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+        }
+        getByName("profile") {
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+        }
         release {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
