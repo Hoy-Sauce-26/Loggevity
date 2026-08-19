@@ -985,8 +985,18 @@ class $AppSettingsTable extends AppSettings
       type: DriftSqlType.int,
       requiredDuringInsert: false,
       defaultValue: const Constant(DateTime.monday));
+  static const VerificationMeta _ringShowsPaceMeta =
+      const VerificationMeta('ringShowsPace');
   @override
-  List<GeneratedColumn> get $columns => [id, weekStartDay];
+  late final GeneratedColumn<bool> ringShowsPace = GeneratedColumn<bool>(
+      'ring_shows_pace', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("ring_shows_pace" IN (0, 1))'),
+      defaultValue: const Constant(true));
+  @override
+  List<GeneratedColumn> get $columns => [id, weekStartDay, ringShowsPace];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1006,6 +1016,12 @@ class $AppSettingsTable extends AppSettings
           weekStartDay.isAcceptableOrUnknown(
               data['week_start_day']!, _weekStartDayMeta));
     }
+    if (data.containsKey('ring_shows_pace')) {
+      context.handle(
+          _ringShowsPaceMeta,
+          ringShowsPace.isAcceptableOrUnknown(
+              data['ring_shows_pace']!, _ringShowsPaceMeta));
+    }
     return context;
   }
 
@@ -1019,6 +1035,8 @@ class $AppSettingsTable extends AppSettings
           .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
       weekStartDay: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}week_start_day'])!,
+      ringShowsPace: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}ring_shows_pace'])!,
     );
   }
 
@@ -1034,12 +1052,21 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
 
   /// 1 = Monday .. 7 = Sunday. User-configurable.
   final int weekStartDay;
-  const AppSetting({required this.id, required this.weekStartDay});
+
+  /// Whether the dashboard ring shows the prorated pace projection (true) or
+  /// raw week-to-date progress (false). Stored rather than held in memory so
+  /// the choice survives a restart.
+  final bool ringShowsPace;
+  const AppSetting(
+      {required this.id,
+      required this.weekStartDay,
+      required this.ringShowsPace});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['week_start_day'] = Variable<int>(weekStartDay);
+    map['ring_shows_pace'] = Variable<bool>(ringShowsPace);
     return map;
   }
 
@@ -1047,6 +1074,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     return AppSettingsCompanion(
       id: Value(id),
       weekStartDay: Value(weekStartDay),
+      ringShowsPace: Value(ringShowsPace),
     );
   }
 
@@ -1056,6 +1084,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     return AppSetting(
       id: serializer.fromJson<int>(json['id']),
       weekStartDay: serializer.fromJson<int>(json['weekStartDay']),
+      ringShowsPace: serializer.fromJson<bool>(json['ringShowsPace']),
     );
   }
   @override
@@ -1064,12 +1093,15 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'weekStartDay': serializer.toJson<int>(weekStartDay),
+      'ringShowsPace': serializer.toJson<bool>(ringShowsPace),
     };
   }
 
-  AppSetting copyWith({int? id, int? weekStartDay}) => AppSetting(
+  AppSetting copyWith({int? id, int? weekStartDay, bool? ringShowsPace}) =>
+      AppSetting(
         id: id ?? this.id,
         weekStartDay: weekStartDay ?? this.weekStartDay,
+        ringShowsPace: ringShowsPace ?? this.ringShowsPace,
       );
   AppSetting copyWithCompanion(AppSettingsCompanion data) {
     return AppSetting(
@@ -1077,6 +1109,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       weekStartDay: data.weekStartDay.present
           ? data.weekStartDay.value
           : this.weekStartDay,
+      ringShowsPace: data.ringShowsPace.present
+          ? data.ringShowsPace.value
+          : this.ringShowsPace,
     );
   }
 
@@ -1084,46 +1119,55 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   String toString() {
     return (StringBuffer('AppSetting(')
           ..write('id: $id, ')
-          ..write('weekStartDay: $weekStartDay')
+          ..write('weekStartDay: $weekStartDay, ')
+          ..write('ringShowsPace: $ringShowsPace')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, weekStartDay);
+  int get hashCode => Object.hash(id, weekStartDay, ringShowsPace);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is AppSetting &&
           other.id == this.id &&
-          other.weekStartDay == this.weekStartDay);
+          other.weekStartDay == this.weekStartDay &&
+          other.ringShowsPace == this.ringShowsPace);
 }
 
 class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<int> id;
   final Value<int> weekStartDay;
+  final Value<bool> ringShowsPace;
   const AppSettingsCompanion({
     this.id = const Value.absent(),
     this.weekStartDay = const Value.absent(),
+    this.ringShowsPace = const Value.absent(),
   });
   AppSettingsCompanion.insert({
     this.id = const Value.absent(),
     this.weekStartDay = const Value.absent(),
+    this.ringShowsPace = const Value.absent(),
   });
   static Insertable<AppSetting> custom({
     Expression<int>? id,
     Expression<int>? weekStartDay,
+    Expression<bool>? ringShowsPace,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (weekStartDay != null) 'week_start_day': weekStartDay,
+      if (ringShowsPace != null) 'ring_shows_pace': ringShowsPace,
     });
   }
 
-  AppSettingsCompanion copyWith({Value<int>? id, Value<int>? weekStartDay}) {
+  AppSettingsCompanion copyWith(
+      {Value<int>? id, Value<int>? weekStartDay, Value<bool>? ringShowsPace}) {
     return AppSettingsCompanion(
       id: id ?? this.id,
       weekStartDay: weekStartDay ?? this.weekStartDay,
+      ringShowsPace: ringShowsPace ?? this.ringShowsPace,
     );
   }
 
@@ -1136,6 +1180,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     if (weekStartDay.present) {
       map['week_start_day'] = Variable<int>(weekStartDay.value);
     }
+    if (ringShowsPace.present) {
+      map['ring_shows_pace'] = Variable<bool>(ringShowsPace.value);
+    }
     return map;
   }
 
@@ -1143,7 +1190,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   String toString() {
     return (StringBuffer('AppSettingsCompanion(')
           ..write('id: $id, ')
-          ..write('weekStartDay: $weekStartDay')
+          ..write('weekStartDay: $weekStartDay, ')
+          ..write('ringShowsPace: $ringShowsPace')
           ..write(')'))
         .toString();
   }
@@ -1633,11 +1681,13 @@ typedef $$AppSettingsTableCreateCompanionBuilder = AppSettingsCompanion
     Function({
   Value<int> id,
   Value<int> weekStartDay,
+  Value<bool> ringShowsPace,
 });
 typedef $$AppSettingsTableUpdateCompanionBuilder = AppSettingsCompanion
     Function({
   Value<int> id,
   Value<int> weekStartDay,
+  Value<bool> ringShowsPace,
 });
 
 class $$AppSettingsTableFilterComposer
@@ -1654,6 +1704,9 @@ class $$AppSettingsTableFilterComposer
 
   ColumnFilters<int> get weekStartDay => $composableBuilder(
       column: $table.weekStartDay, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get ringShowsPace => $composableBuilder(
+      column: $table.ringShowsPace, builder: (column) => ColumnFilters(column));
 }
 
 class $$AppSettingsTableOrderingComposer
@@ -1671,6 +1724,10 @@ class $$AppSettingsTableOrderingComposer
   ColumnOrderings<int> get weekStartDay => $composableBuilder(
       column: $table.weekStartDay,
       builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get ringShowsPace => $composableBuilder(
+      column: $table.ringShowsPace,
+      builder: (column) => ColumnOrderings(column));
 }
 
 class $$AppSettingsTableAnnotationComposer
@@ -1687,6 +1744,9 @@ class $$AppSettingsTableAnnotationComposer
 
   GeneratedColumn<int> get weekStartDay => $composableBuilder(
       column: $table.weekStartDay, builder: (column) => column);
+
+  GeneratedColumn<bool> get ringShowsPace => $composableBuilder(
+      column: $table.ringShowsPace, builder: (column) => column);
 }
 
 class $$AppSettingsTableTableManager extends RootTableManager<
@@ -1714,18 +1774,22 @@ class $$AppSettingsTableTableManager extends RootTableManager<
           updateCompanionCallback: ({
             Value<int> id = const Value.absent(),
             Value<int> weekStartDay = const Value.absent(),
+            Value<bool> ringShowsPace = const Value.absent(),
           }) =>
               AppSettingsCompanion(
             id: id,
             weekStartDay: weekStartDay,
+            ringShowsPace: ringShowsPace,
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
             Value<int> weekStartDay = const Value.absent(),
+            Value<bool> ringShowsPace = const Value.absent(),
           }) =>
               AppSettingsCompanion.insert(
             id: id,
             weekStartDay: weekStartDay,
+            ringShowsPace: ringShowsPace,
           ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

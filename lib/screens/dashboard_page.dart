@@ -6,6 +6,7 @@ import '../data/backup_service.dart';
 import '../data/metrics_repository.dart';
 import '../data/portability.dart';
 import '../providers.dart';
+import '../widgets/category_detail_sheet.dart';
 import '../widgets/category_progress_tile.dart';
 import '../widgets/fit_height.dart';
 import '../widgets/quick_log_sheet.dart';
@@ -194,13 +195,13 @@ class DashboardPage extends ConsumerWidget {
   }
 }
 
-class _WeekView extends StatelessWidget {
+class _WeekView extends ConsumerWidget {
   const _WeekView({required this.metrics});
 
   final WeeklyMetrics metrics;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return FitHeight(
       builder: (context, constraints) {
         // Give the seven rows their space first, then let the ring have the
@@ -212,14 +213,24 @@ class _WeekView extends StatelessWidget {
             _layoutSlack -
             (metrics.isEmpty ? 34 : 0);
         final diameter = leftover.clamp(120.0, 220.0);
-        return _build(context, diameter);
+        return _build(context, ref, diameter);
       },
     );
   }
 
-  Widget _build(BuildContext context, double diameter) {
+  Widget _build(BuildContext context, WidgetRef ref, double diameter) {
     final theme = Theme.of(context);
+    final showsPace = ref.watch(ringShowsPaceProvider);
     final complete = metrics.daysElapsed == 7;
+    // The ring shows one reading; the header shows the other, so both numbers
+    // stay on screen whichever way the toggle is set.
+    final ringScore = showsPace
+        ? metrics.pace.compositePercent
+        : metrics.full.compositePercent;
+    final otherScore = showsPace
+        ? metrics.full.compositePercent
+        : metrics.pace.compositePercent;
+    final otherLabel = showsPace ? 'banked' : 'on pace';
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
@@ -230,10 +241,13 @@ class _WeekView extends StatelessWidget {
           Center(
             child: ScoreRing(
               diameter: diameter,
-              percent: metrics.pace.compositePercent,
+              percent: ringScore,
               caption: complete
-                  ? 'Week complete'
-                  : 'On pace · day ${metrics.daysElapsed} of 7',
+                  ? (showsPace ? 'Week complete' : 'Banked')
+                  : '${showsPace ? 'On pace' : 'Banked'} · '
+                      'day ${metrics.daysElapsed} of 7',
+              onTap: () =>
+                  ref.read(databaseProvider).setRingShowsPace(!showsPace),
             ),
           ),
           const SizedBox(height: 8),
@@ -260,7 +274,7 @@ class _WeekView extends StatelessWidget {
               Text('This week', style: theme.textTheme.titleMedium),
               const Spacer(),
               Text(
-                '${metrics.full.compositePercent.toStringAsFixed(0)}% banked',
+                '${otherScore.toStringAsFixed(0)}% $otherLabel',
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
               ),
@@ -271,20 +285,22 @@ class _WeekView extends StatelessWidget {
           // tally; the ring above answers the different question of whether the
           // week is on track so far.
           //
-          ..._categoryRows(metrics),
+          ..._categoryRows(context, metrics),
         ],
       ),
     );
   }
 
-  /// One full-width row per category, in order.
-  List<Widget> _categoryRows(WeeklyMetrics metrics) {
+  /// One full-width row per category, in order. Tapping one opens its
+  /// day-by-day breakdown, which is also where entries are corrected.
+  List<Widget> _categoryRows(BuildContext context, WeeklyMetrics metrics) {
     return [
       for (final score in metrics.full.categories)
         CategoryProgressTile(
           category: score.category,
           subScore: score.subScore,
           rawAmount: metrics.totals.rawFor(score.category),
+          onTap: () => showCategoryDetailSheet(context, score.category),
         ),
       const SizedBox(height: _logButtonClearance),
     ];

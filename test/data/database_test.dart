@@ -63,7 +63,12 @@ void main() {
       expect(names, contains('idx_daily_entries_category'));
     });
 
-    test('schemaVersion is 1', () => expect(db.schemaVersion, 1));
+    test('schemaVersion is 2', () => expect(db.schemaVersion, 2));
+
+    test('app_settings carries the ring preference', () async {
+      expect(await columnsOf('app_settings'),
+          {'id', 'week_start_day', 'ring_shows_pace'});
+    });
   });
 
   group('settings', () {
@@ -73,6 +78,14 @@ void main() {
       expect(s.id, 0);
       expect(s.weekStartDay, DateTime.monday);
       expect(await db.select(db.appSettings).get(), hasLength(1));
+    });
+
+    test('the ring preference defaults to pace and persists', () async {
+      expect((await db.loadSettings()).ringShowsPace, isTrue);
+      await db.setRingShowsPace(false);
+      expect((await db.loadSettings()).ringShowsPace, isFalse);
+      await db.setRingShowsPace(true);
+      expect((await db.loadSettings()).ringShowsPace, isTrue);
     });
 
     test('week start is user-configurable and persists', () async {

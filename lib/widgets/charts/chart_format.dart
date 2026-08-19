@@ -27,3 +27,8 @@ const _months = [
 
 /// `Jul 6` - short enough to sit under a chart tick.
 String shortDate(DateTime date) => '${_months[date.month - 1]} ${date.day}';
+
+const _weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+/// `Mon` - DateTime.weekday is 1-based.
+String shortWeekday(DateTime date) => _weekdays[date.weekday - 1];

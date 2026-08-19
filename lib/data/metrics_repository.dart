@@ -144,6 +144,36 @@ class MetricsRepository {
   Stream<List<DailyEntry>> watchEntriesForWeek(WeekRange week) =>
       _entriesIn(week).watch();
 
+  /// One category's entries for a week, oldest first.
+  Stream<List<DailyEntry>> watchCategoryEntries(
+    WeekRange week,
+    ActivityCategory category,
+  ) {
+    final query = db.select(db.dailyEntries)
+      ..where((t) =>
+          t.localDate.isBiggerOrEqualValue(week.startKey) &
+          t.localDate.isSmallerThanValue(week.endExclusiveKey) &
+          t.category.equalsValue(category))
+      ..orderBy([(t) => OrderingTerm.asc(t.occurredAt)]);
+    return query.watch();
+  }
+
+  /// Totals [entries] into one figure per day of [week], in day order.
+  ///
+  /// Every category is stored per entry with a local date, so a daily
+  /// breakdown is available for all of them - not only sleep, which merely
+  /// happens to be the one the scoring model consumes per day.
+  static List<double> dailyTotals(
+    WeekRange week,
+    Iterable<DailyEntry> entries,
+  ) {
+    final byDay = <String, double>{};
+    for (final e in entries) {
+      byDay.update(e.localDate, (v) => v + e.value, ifAbsent: () => e.value);
+    }
+    return [for (final day in week.days) byDay[localDateKey(day)] ?? 0.0];
+  }
+
   // --- mutations ---
 
   Future<int> log({

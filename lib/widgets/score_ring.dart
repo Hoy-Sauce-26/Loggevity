@@ -15,11 +15,16 @@ class ScoreRing extends StatelessWidget {
     required this.percent,
     required this.caption,
     this.diameter = 220,
+    this.onTap,
   });
 
   final double percent;
   final String caption;
   final double diameter;
+
+  /// Switches the ring between its two readings. When set, the ring becomes
+  /// tappable and shows a swap affordance so the choice is discoverable.
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +34,7 @@ class ScoreRing extends StatelessWidget {
         negative ? theme.colorScheme.error : theme.colorScheme.primary;
     final progress = (percent / 100).clamp(0.0, 1.0);
 
-    return SizedBox(
+    final ring = SizedBox(
       width: diameter,
       height: diameter,
       child: Stack(
@@ -78,10 +83,28 @@ class ScoreRing extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (onTap != null) ...[
+                  const SizedBox(height: 2),
+                  Icon(
+                    Icons.swap_vert,
+                    size: 16,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ],
               ],
             ),
           ),
         ],
+      ),
+    );
+
+    if (onTap == null) return ring;
+    return Semantics(
+      button: true,
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: ring,
       ),
     );
   }

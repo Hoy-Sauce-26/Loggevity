@@ -64,6 +64,11 @@ class AppSettings extends Table {
   IntColumn get weekStartDay =>
       integer().withDefault(const Constant(DateTime.monday))();
 
+  /// Whether the dashboard ring shows the prorated pace projection (true) or
+  /// raw week-to-date progress (false). Stored rather than held in memory so
+  /// the choice survives a restart.
+  BoolColumn get ringShowsPace => boolean().withDefault(const Constant(true))();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -76,7 +81,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -84,8 +89,11 @@ class AppDatabase extends _$AppDatabase {
           await m.createAll();
         },
         onUpgrade: (m, from, to) async {
-          // No migrations yet - schemaVersion is still 1. New versions append
-          // a step here and a golden schema under test/data/schemas/.
+          // v1 -> v2 added the ring's pace/progress preference. Additive, so
+          // existing rows keep their data and pick up the column default.
+          if (from < 2) {
+            await m.addColumn(appSettings, appSettings.ringShowsPace);
+          }
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
@@ -136,6 +144,11 @@ class AppDatabase extends _$AppDatabase {
       query.where((t) => t.weekStartDate.isBiggerOrEqualValue(from));
     }
     return query.get();
+  }
+
+  Future<void> setRingShowsPace(bool showsPace) {
+    return (update(appSettings)..where((t) => t.id.equals(0)))
+        .write(AppSettingsCompanion(ringShowsPace: Value(showsPace)));
   }
 
   Future<void> setWeekStartDay(int weekday) {

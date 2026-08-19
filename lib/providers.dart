@@ -5,6 +5,7 @@ import 'data/database.dart';
 import 'data/metrics_repository.dart';
 import 'data/week.dart';
 import 'data/week_sealer.dart';
+import 'scoring/scoring.dart';
 
 /// Overridden in tests with an in-memory executor.
 final databaseProvider = Provider<AppDatabase>((ref) {
@@ -26,6 +27,11 @@ final weekStartDayProvider = Provider<int>((ref) {
   // Monday until the stored setting arrives, so there is always a real week to
   // score rather than a null hole the UI has to spin on.
   return ref.watch(settingsProvider).value?.weekStartDay ?? DateTime.monday;
+});
+
+/// Whether the ring shows the prorated projection or raw banked progress.
+final ringShowsPaceProvider = Provider<bool>((ref) {
+  return ref.watch(settingsProvider).value?.ringShowsPace ?? true;
 });
 
 /// The week currently being logged into.
@@ -72,5 +78,16 @@ final backupServiceProvider = Provider<BackupService>((ref) {
   return BackupService(
     ref.watch(databaseProvider),
     ref.watch(metricsRepositoryProvider),
+  );
+});
+
+/// One category's entries for the current week, kept live so an edit or a
+/// delete is reflected immediately.
+final categoryEntriesProvider =
+    StreamProvider.family<List<DailyEntry>, ActivityCategory>((ref, category) {
+  final repo = ref.watch(metricsRepositoryProvider);
+  return repo.watchCategoryEntries(
+    ref.watch(currentWeekRangeProvider),
+    category,
   );
 });
