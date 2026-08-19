@@ -43,9 +43,10 @@ void main() {
   /// has to come down while there are still pumps available to flush it.
   Future<void> withDashboard(
     WidgetTester tester,
-    Future<void> Function() body,
-  ) async {
-    tester.view.physicalSize = const Size(1000, 2200);
+    Future<void> Function() body, {
+    Size size = const Size(1000, 2200),
+  }) async {
+    tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
@@ -139,7 +140,9 @@ void main() {
         expect(find.byType(QuickLogSheet), findsOneWidget);
         expect(find.text('Log activity'), findsOneWidget);
         expect(find.widgetWithText(ActionChip, '+15m'), findsWidgets);
-        expect(find.widgetWithText(ActionChip, '7.5h'), findsOneWidget);
+        expect(find.widgetWithText(ActionChip, '8h'), findsOneWidget);
+        // A text box per category, for anything the presets do not cover.
+        expect(find.byType(TextField), findsNWidgets(7));
 
         await tester.tapAt(const Offset(500, 30)); // dismiss the sheet
         await tester.pumpAndSettle();
@@ -151,13 +154,13 @@ void main() {
         await tester.tap(find.text('Log'));
         await tester.pumpAndSettle();
 
-        await tester.tap(find.widgetWithText(ActionChip, '+45m').first);
+        await tester.tap(find.widgetWithText(ActionChip, '+30m').first);
         await tester.pumpAndSettle();
 
         final entries = await db.select(db.dailyEntries).get();
         expect(entries, hasLength(1));
         expect(entries.single.category, ActivityCategory.moderatePA);
-        expect(entries.single.value, 45);
+        expect(entries.single.value, 30);
         expect(entries.single.localDate, '2026-07-08');
         expect(find.byType(QuickLogSheet), findsOneWidget);
 
@@ -171,17 +174,73 @@ void main() {
         await tester.tap(find.text('Log'));
         await tester.pumpAndSettle();
 
-        await tester.tap(find.widgetWithText(ActionChip, '+45m').first);
+        await tester.tap(find.widgetWithText(ActionChip, '+30m').first);
         await tester.pumpAndSettle();
         expect(await db.select(db.dailyEntries).get(), hasLength(1));
 
         // Undo must be reachable while the sheet is still open: a SnackBar
         // would sit behind the sheet's modal barrier and never receive the tap.
-        expect(find.text('Added Moderate Activity +45m'), findsOneWidget);
+        expect(find.text('Added Moderate Activity +30m'), findsOneWidget);
         await tester.tap(find.text('Undo'));
         await tester.pumpAndSettle();
         expect(await db.select(db.dailyEntries).get(), isEmpty);
         expect(find.text('Undo'), findsNothing);
+
+        await tester.tapAt(const Offset(500, 30));
+        await tester.pumpAndSettle();
+      });
+    });
+
+    testWidgets('a typed amount is logged in the category\'s own unit',
+        (tester) async {
+      await withDashboard(tester, () async {
+        await tester.tap(find.text('Log'));
+        await tester.pumpAndSettle();
+
+        // Fourth field is Flexibility (minutes); last is Sleep (hours).
+        await tester.enterText(find.byType(TextField).at(3), '25');
+        await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.add).at(3));
+        await tester.pumpAndSettle();
+
+        await tester.enterText(find.byType(TextField).at(6), '7.5');
+        await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.add).at(6));
+        await tester.pumpAndSettle();
+
+        final entries = await db.select(db.dailyEntries).get();
+        expect(entries, hasLength(2));
+        expect(entries.first.category, ActivityCategory.flexibility);
+        expect(entries.first.value, 25);
+        expect(entries.last.category, ActivityCategory.sleep);
+        expect(entries.last.value, 7.5);
+        expect(find.text('Added Sleep 7.5h'), findsOneWidget);
+
+        await tester.tapAt(const Offset(500, 30));
+        await tester.pumpAndSettle();
+      });
+    });
+
+    testWidgets('rejects empty and non-positive input', (tester) async {
+      await withDashboard(tester, () async {
+        await tester.tap(find.text('Log'));
+        await tester.pumpAndSettle();
+
+        // Nothing typed: the add button is disabled.
+        final button = tester.widget<IconButton>(
+            find.widgetWithIcon(IconButton, Icons.add).first);
+        expect(button.onPressed, isNull);
+
+        await tester.enterText(find.byType(TextField).first, '0');
+        await tester.pumpAndSettle();
+        expect(
+          tester
+              .widget<IconButton>(
+                  find.widgetWithIcon(IconButton, Icons.add).first)
+              .onPressed,
+          isNull,
+        );
+        expect(await db.select(db.dailyEntries).get(), isEmpty);
 
         await tester.tapAt(const Offset(500, 30));
         await tester.pumpAndSettle();
@@ -230,6 +289,69 @@ void main() {
 
         expect(find.text('Jul 5 – 11'), findsOneWidget);
         expect(find.text('90 min'), findsOneWidget);
+      });
+    });
+  });
+
+  group('adapts to the screen it is given', () {
+    ScoreRing ringOf(WidgetTester tester) =>
+        tester.widget<ScoreRing>(find.byType(ScoreRing));
+
+    testWidgets('uses the full-size ring when there is room', (tester) async {
+      await withDashboard(tester, () async {
+        expect(ringOf(tester).diameter, 220);
+        expect(find.byType(CategoryProgressTile), findsNWidgets(7));
+      }, size: const Size(400, 1000));
+    });
+
+    testWidgets('shrinks the ring rather than the category rows',
+        (tester) async {
+      await withDashboard(tester, () async {
+        // The rows are the content that has to survive; the ring gives way.
+        expect(ringOf(tester).diameter, lessThan(220));
+        expect(ringOf(tester).diameter, greaterThanOrEqualTo(120));
+        expect(find.byType(CategoryProgressTile), findsNWidgets(7));
+        for (final c in ActivityCategory.values) {
+          expect(find.text(c.label), findsOneWidget);
+        }
+      }, size: const Size(400, 740));
+    });
+
+    testWidgets('never shrinks the ring past its floor', (tester) async {
+      // Below this the page simply scrolls - the ring stays legible rather
+      // than collapsing to nothing.
+      await withDashboard(tester, () async {
+        expect(ringOf(tester).diameter, 120);
+      }, size: const Size(400, 480));
+    });
+
+    testWidgets('the log sheet lays out on a short screen without overflowing',
+        (tester) async {
+      await withDashboard(tester, () async {
+        await tester.tap(find.text('Log'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(QuickLogSheet), findsOneWidget);
+        expect(find.byType(TextField), findsNWidgets(7));
+
+        await tester.tapAt(const Offset(200, 10));
+        await tester.pumpAndSettle();
+      }, size: const Size(400, 640));
+    });
+  });
+
+  group('data portability menu', () {
+    testWidgets('offers both export formats and import', (tester) async {
+      await withDashboard(tester, () async {
+        await tester.tap(find.byIcon(Icons.more_vert));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Export as JSON'), findsOneWidget);
+        expect(find.text('Export as CSV'), findsOneWidget);
+        expect(find.text('Import from file…'), findsOneWidget);
+
+        await tester.tapAt(const Offset(200, 400));
+        await tester.pumpAndSettle();
       });
     });
   });

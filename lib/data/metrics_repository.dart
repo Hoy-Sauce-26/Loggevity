@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 
 import '../scoring/scoring.dart';
 import 'database.dart';
+import 'portability.dart';
 import 'week.dart';
 
 /// Everything the UI needs to render one week, recomputed from scratch on
@@ -173,4 +174,51 @@ class MetricsRepository {
 
   Future<int> deleteEntry(int id) =>
       (db.delete(db.dailyEntries)..where((t) => t.id.equals(id))).go();
+
+  /// Every entry, oldest first - the source for an export.
+  Future<List<DailyEntry>> allEntries() {
+    final query = db.select(db.dailyEntries)
+      ..orderBy([(t) => OrderingTerm.asc(t.occurredAt)]);
+    return query.get();
+  }
+
+  /// Adds imported entries, skipping any that are already present.
+  ///
+  /// De-duplicated on [PortableEntry.fingerprint] rather than replacing the
+  /// database wholesale: an import should never be able to destroy data the
+  /// user did not choose to remove, and re-importing the same file should be a
+  /// no-op instead of doubling the week.
+  Future<int> importEntries(List<PortableEntry> entries) async {
+    if (entries.isEmpty) return 0;
+    final existing = {
+      for (final row in await allEntries())
+        PortableEntry(
+          localDate: row.localDate,
+          category: row.category,
+          value: row.value,
+          occurredAt: row.occurredAt,
+          note: row.note,
+        ).fingerprint,
+    };
+
+    final fresh = <PortableEntry>[];
+    for (final entry in entries) {
+      if (existing.add(entry.fingerprint)) fresh.add(entry);
+    }
+    if (fresh.isEmpty) return 0;
+
+    await db.batch((batch) {
+      batch.insertAll(db.dailyEntries, [
+        for (final e in fresh)
+          DailyEntriesCompanion.insert(
+            occurredAt: e.occurredAt,
+            localDate: e.localDate,
+            category: e.category,
+            value: e.value,
+            note: Value(e.note),
+          ),
+      ]);
+    });
+    return fresh.length;
+  }
 }

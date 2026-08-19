@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'data/backup_service.dart';
 import 'data/database.dart';
 import 'data/metrics_repository.dart';
 import 'data/week.dart';
@@ -65,4 +66,11 @@ final sealOnLaunchProvider = FutureProvider<int>((ref) {
 /// Sealed weeks, oldest first.
 final snapshotsProvider = StreamProvider<List<WeeklySnapshot>>((ref) {
   return ref.watch(databaseProvider).watchSnapshots();
+});
+
+final backupServiceProvider = Provider<BackupService>((ref) {
+  return BackupService(
+    ref.watch(databaseProvider),
+    ref.watch(metricsRepositoryProvider),
+  );
 });

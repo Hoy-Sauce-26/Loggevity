@@ -34,58 +34,32 @@ const categoryPresentation = <ActivityCategory, CategoryPresentation>{
   ActivityCategory.moderatePA: CategoryPresentation(
     Icons.directions_walk,
     Color(0xFF2E8B78),
-    [
-      QuickLogOption('+15m', 15),
-      QuickLogOption('+30m', 30),
-      QuickLogOption('+45m', 45),
-      QuickLogOption('+1h', 60),
-    ],
+    [QuickLogOption('+15m', 15), QuickLogOption('+30m', 30)],
   ),
   ActivityCategory.vigorousPA: CategoryPresentation(
     Icons.directions_run,
     Color(0xFFE0784A),
-    [
-      QuickLogOption('+10m', 10),
-      QuickLogOption('+20m', 20),
-      QuickLogOption('+30m', 30),
-    ],
+    [QuickLogOption('+15m', 15), QuickLogOption('+30m', 30)],
   ),
   ActivityCategory.resistance: CategoryPresentation(
     Icons.fitness_center,
     Color(0xFF6272C4),
-    [
-      QuickLogOption('+15m', 15),
-      QuickLogOption('+30m', 30),
-      QuickLogOption('+45m', 45),
-    ],
+    [QuickLogOption('+15m', 15), QuickLogOption('+30m', 30)],
   ),
   ActivityCategory.flexibility: CategoryPresentation(
     Icons.self_improvement,
     Color(0xFF9B72C6),
-    [
-      QuickLogOption('+10m', 10),
-      QuickLogOption('+15m', 15),
-      QuickLogOption('+30m', 30),
-    ],
+    [QuickLogOption('+15m', 15), QuickLogOption('+30m', 30)],
   ),
   ActivityCategory.nature: CategoryPresentation(
     Icons.park_outlined,
     Color(0xFF6BA557),
-    [
-      QuickLogOption('+15m', 15),
-      QuickLogOption('+30m', 30),
-      QuickLogOption('+1h', 60),
-    ],
+    [QuickLogOption('+30m', 30), QuickLogOption('+1h', 60)],
   ),
   ActivityCategory.socializing: CategoryPresentation(
     Icons.people_outline,
     Color(0xFFD3A03F),
-    [
-      QuickLogOption('+30m', 0.5),
-      QuickLogOption('+1h', 1),
-      QuickLogOption('+2h', 2),
-      QuickLogOption('+3h', 3),
-    ],
+    [QuickLogOption('+30m', 0.5), QuickLogOption('+1h', 1)],
   ),
   // Sleep is a nightly figure rather than a running tally, so its options set
   // a night's length instead of nudging a total upward.
@@ -93,11 +67,8 @@ const categoryPresentation = <ActivityCategory, CategoryPresentation>{
     Icons.bedtime_outlined,
     Color(0xFF4E93AC),
     [
-      QuickLogOption('6h', 6),
       QuickLogOption('7h', 7),
-      QuickLogOption('7.5h', 7.5),
       QuickLogOption('8h', 8),
-      QuickLogOption('8.5h', 8.5),
       QuickLogOption('9h', 9),
     ],
   ),

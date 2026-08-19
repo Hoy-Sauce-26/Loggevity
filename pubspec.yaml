@@ -19,6 +19,10 @@ dependencies:
   path_provider: ^2.1.0
   path: ^1.9.0
 
+  # Data portability
+  share_plus: ^10.1.4
+  file_selector: ^1.0.3
+
   # Charts
   fl_chart: ^1.2.0
 
