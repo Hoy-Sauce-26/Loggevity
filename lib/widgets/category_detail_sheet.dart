@@ -7,6 +7,7 @@ import '../data/metrics_repository.dart';
 import '../data/week.dart';
 import '../providers.dart';
 import '../scoring/scoring.dart';
+import 'category_log_input.dart';
 import 'category_presentation.dart';
 import 'charts/chart_format.dart';
 import 'amount_dialog.dart';
@@ -88,6 +89,17 @@ class CategoryDetailSheet extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
               _DailyChart(week: week, daily: daily, category: category),
+              const SizedBox(height: 18),
+              // The same control as the quick-log sheet, narrowed to this one
+              // category, so a correction can be made without going back out
+              // to the main screen. It sits between the chart and the entry
+              // list, next to the entries a new log will join.
+              CategoryLogInput(
+                category: category,
+                onLog: (value, _) => ref
+                    .read(metricsRepositoryProvider)
+                    .log(category: category, value: value),
+              ),
               const SizedBox(height: 20),
               if (entries.isEmpty)
                 Padding(

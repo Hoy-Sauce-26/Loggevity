@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers.dart';
 import '../scoring/scoring.dart';
+import 'category_log_input.dart';
 import 'category_presentation.dart';
 import 'fit_height.dart';
 
@@ -149,7 +149,7 @@ class _QuickLogSheetState extends ConsumerState<QuickLogSheet> {
   }
 }
 
-class _CategoryRow extends StatefulWidget {
+class _CategoryRow extends StatelessWidget {
   const _CategoryRow({
     required this.category,
     required this.loggedThisWeek,
@@ -163,46 +163,12 @@ class _CategoryRow extends StatefulWidget {
   final void Function(double value, String label) onLog;
 
   @override
-  State<_CategoryRow> createState() => _CategoryRowState();
-}
-
-class _CategoryRowState extends State<_CategoryRow> {
-  final _controller = TextEditingController();
-  bool _canSubmit = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller.addListener(() {
-      final parsed = double.tryParse(_controller.text.trim());
-      final valid = parsed != null && parsed > 0;
-      if (valid != _canSubmit) setState(() => _canSubmit = valid);
-    });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    final parsed = double.tryParse(_controller.text.trim());
-    if (parsed == null || parsed <= 0) return;
-    widget.onLog(parsed, formatAmount(widget.category, parsed));
-    _controller.clear();
-    FocusScope.of(context).unfocus();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final presentation = categoryPresentation[widget.category]!;
-    final isHours = widget.category.unit == ActivityUnit.hours;
-    final subtitle = widget.nights == null
-        ? formatAmount(widget.category, widget.loggedThisWeek)
-        : '${formatAmount(widget.category, widget.loggedThisWeek)} · '
-            '${widget.nights} ${widget.nights == 1 ? 'night' : 'nights'}';
+    final subtitle = nights == null
+        ? formatAmount(category, loggedThisWeek)
+        : '${formatAmount(category, loggedThisWeek)} · '
+            '$nights ${nights == 1 ? 'night' : 'nights'}';
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: _rowGap),
@@ -211,12 +177,11 @@ class _CategoryRowState extends State<_CategoryRow> {
         children: [
           Row(
             children: [
-              Icon(presentation.icon,
+              Icon(categoryPresentation[category]!.icon,
                   size: 18, color: theme.colorScheme.primary),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(widget.category.label,
-                    style: theme.textTheme.labelLarge),
+                child: Text(category.label, style: theme.textTheme.labelLarge),
               ),
               Text(
                 subtitle,
@@ -226,63 +191,7 @@ class _CategoryRowState extends State<_CategoryRow> {
             ],
           ),
           const SizedBox(height: 6),
-          Row(
-            children: [
-              SizedBox(
-                width: 92,
-                child: TextField(
-                  controller: _controller,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                  ],
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => _submit(),
-                  style: theme.textTheme.bodyMedium,
-                  decoration: InputDecoration(
-                    isDense: true,
-                    hintText: isHours ? 'hours' : 'mins',
-                    suffixText: isHours ? 'h' : 'min',
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              // An explicit add button, because iOS numeric keypads have no
-              // return key to submit with.
-              IconButton.filledTonal(
-                onPressed: _canSubmit ? _submit : null,
-                icon: const Icon(Icons.add, size: 18),
-                padding: EdgeInsets.zero,
-                constraints:
-                    const BoxConstraints.tightFor(width: 38, height: 38),
-                tooltip: 'Add ${widget.category.label}',
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  children: [
-                    for (final option in presentation.quickOptions)
-                      ActionChip(
-                        label: Text(option.label),
-                        onPressed: () =>
-                            widget.onLog(option.value, option.label),
-                        visualDensity: VisualDensity.compact,
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        padding: const EdgeInsets.symmetric(horizontal: 2),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+          CategoryLogInput(category: category, onLog: onLog),
         ],
       ),
     );

@@ -47,6 +47,23 @@ void main() {
     await tester.pump(const Duration(milliseconds: 10));
   }
 
+  /// Opens one category's detail sheet from the dashboard, runs [body], then
+  /// dismisses it.
+  Future<void> withSheet(
+    WidgetTester tester,
+    ActivityCategory category,
+    Future<void> Function() body,
+  ) async {
+    await withDashboard(tester, () async {
+      await tester.tap(find.text(category.label));
+      await tester.pumpAndSettle();
+      expect(find.byType(CategoryDetailSheet), findsOneWidget);
+      await body();
+      await tester.tapAt(const Offset(500, 20));
+      await tester.pumpAndSettle();
+    });
+  }
+
   group('day-by-day breakdown', () {
     testWidgets('tapping a category opens its week, grouped by day',
         (tester) async {
@@ -272,6 +289,50 @@ void main() {
 
       await withDashboard(tester, () async {
         expect(ringOf(tester).caption, startsWith('Banked'));
+      });
+    });
+  });
+
+  group('logging from the detail sheet', () {
+    testWidgets('shows an input for this category only', (tester) async {
+      await withSheet(tester, ActivityCategory.sleep, () async {
+        // One text box, not one per category as on the main log sheet.
+        expect(find.byType(TextField), findsOneWidget);
+        // Sleep's own presets and unit, not another category's.
+        expect(find.widgetWithText(ActionChip, '7h'), findsOneWidget);
+        expect(find.widgetWithText(ActionChip, '9h'), findsOneWidget);
+        expect(find.widgetWithText(ActionChip, '+15m'), findsNothing);
+        final field = tester.widget<TextField>(find.byType(TextField));
+        expect(field.decoration!.suffixText, 'h');
+      });
+    });
+
+    testWidgets('a typed amount is logged to this category', (tester) async {
+      await withSheet(tester, ActivityCategory.sleep, () async {
+        await tester.enterText(find.byType(TextField), '7.5');
+        await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.add));
+        await tester.pumpAndSettle();
+
+        final entries = await db.select(db.dailyEntries).get();
+        expect(entries.where((e) => e.category == ActivityCategory.sleep),
+            hasLength(1));
+        expect(
+          entries.firstWhere((e) => e.category == ActivityCategory.sleep).value,
+          7.5,
+        );
+      });
+    });
+
+    testWidgets('a preset logs and the list updates in place', (tester) async {
+      await withSheet(tester, ActivityCategory.moderatePA, () async {
+        final before = (await db.select(db.dailyEntries).get()).length;
+        await tester.tap(find.widgetWithText(ActionChip, '+30m'));
+        await tester.pumpAndSettle();
+
+        expect(await db.select(db.dailyEntries).get(), hasLength(before + 1));
+        // The new entry appears in the day list without leaving the sheet.
+        expect(find.text('30 min'), findsWidgets);
       });
     });
   });
