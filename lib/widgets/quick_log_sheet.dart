@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/week.dart';
 import '../providers.dart';
 import '../scoring/scoring.dart';
 import 'category_log_input.dart';
 import 'category_presentation.dart';
+import 'day_selector.dart';
 import 'fit_height.dart';
 
 /// Opens the intra-day quick-log sheet.
@@ -45,17 +47,40 @@ const double _rowGap = 8;
 class _QuickLogSheetState extends ConsumerState<QuickLogSheet> {
   _LastLog? _lastLog;
 
+  /// Local midnight on the day being logged into. Defaults to today; the day
+  /// picker moves it so something remembered late still lands on the day it
+  /// happened.
+  DateTime? _day;
+
+  DateTime get _today {
+    final now = ref.read(metricsRepositoryProvider).now();
+    return DateTime(now.year, now.month, now.day);
+  }
+
+  DateTime get _selectedDay => _day ?? _today;
+
   Future<void> _log(
     ActivityCategory category,
     double value,
     String label,
   ) async {
     if (value <= 0) return;
+    final now = ref.read(metricsRepositoryProvider).now();
+    final day = _selectedDay;
+    // Keep the current time of day on a back-dated entry: only the date
+    // decides scoring, and a real clock time keeps the entry list ordered
+    // sensibly rather than stacking everything at midnight.
+    final occurredAt =
+        DateTime(day.year, day.month, day.day, now.hour, now.minute);
     final id = await ref
         .read(metricsRepositoryProvider)
-        .log(category: category, value: value);
+        .log(category: category, value: value, occurredAt: occurredAt);
     if (!mounted) return;
-    setState(() => _lastLog = (id: id, label: '${category.label} $label'));
+    final suffix = localDateKey(day) == localDateKey(_today)
+        ? ''
+        : ' on ${dayLabel(day, _today)}';
+    setState(
+        () => _lastLog = (id: id, label: '${category.label} $label$suffix'));
   }
 
   Future<void> _undo() async {
@@ -100,6 +125,9 @@ class _QuickLogSheetState extends ConsumerState<QuickLogSheet> {
   Widget _build(BuildContext context) {
     final theme = Theme.of(context);
     final metrics = ref.watch(currentWeekProvider).value;
+    final week = ref.watch(currentWeekRangeProvider);
+    final today = _today;
+    final day = _selectedDay;
     final last = _lastLog;
 
     return Padding(
@@ -125,13 +153,28 @@ class _QuickLogSheetState extends ConsumerState<QuickLogSheet> {
           ),
           Text(
             last == null
-                ? 'Type an amount, or tap a preset.'
+                ? 'Logging to ${dayLabel(day, today)} · '
+                    'type an amount, or tap a preset.'
                 : 'Added ${last.label}',
             style: theme.textTheme.bodySmall?.copyWith(
               color: last == null
                   ? theme.colorScheme.onSurfaceVariant
                   : theme.colorScheme.primary,
             ),
+          ),
+          const SizedBox(height: 8),
+          // Above the categories, because it applies to all of them: whichever
+          // row is used next, it lands on this day.
+          DaySelector(
+            week: week,
+            selected: localDateKey(day),
+            today: today,
+            // A day change invalidates the undo target's description, and the
+            // entry it points at is no longer the obvious thing to take back.
+            onSelected: (picked) => setState(() {
+              _day = picked;
+              _lastLog = null;
+            }),
           ),
           const SizedBox(height: 4),
           for (final category in ActivityCategory.values)

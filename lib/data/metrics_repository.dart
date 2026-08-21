@@ -193,11 +193,46 @@ class MetricsRepository {
         ));
   }
 
-  Future<void> updateEntry(int id, {double? value, String? note}) {
-    return (db.update(db.dailyEntries)..where((t) => t.id.equals(id))).write(
+  /// Edits an existing entry.
+  ///
+  /// [day] moves the entry to another local date - a forgotten night's sleep
+  /// entered the next morning belongs to the night it happened, not to the day
+  /// it was typed. [occurredAt] is rewritten to keep the same time of day on
+  /// the new date, so ordering within the day survives the move.
+  Future<void> updateEntry(
+    int id, {
+    double? value,
+    String? note,
+    DateTime? day,
+  }) async {
+    var occurredAt = const Value<DateTime>.absent();
+    var localDate = const Value<String>.absent();
+
+    if (day != null) {
+      final target = day.isUtc ? day.toLocal() : day;
+      final existing = await (db.select(db.dailyEntries)
+            ..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
+      if (existing == null) return;
+      final at = existing.occurredAt.toLocal();
+      final moved = DateTime(
+        target.year,
+        target.month,
+        target.day,
+        at.hour,
+        at.minute,
+        at.second,
+      );
+      occurredAt = Value(moved.toUtc());
+      localDate = Value(localDateKey(moved));
+    }
+
+    await (db.update(db.dailyEntries)..where((t) => t.id.equals(id))).write(
       DailyEntriesCompanion(
         value: value == null ? const Value.absent() : Value(value),
         note: note == null ? const Value.absent() : Value(note),
+        occurredAt: occurredAt,
+        localDate: localDate,
       ),
     );
   }

@@ -28,7 +28,9 @@ class CategoryLogInput extends StatefulWidget {
 
 class _CategoryLogInputState extends State<CategoryLogInput> {
   final _controller = TextEditingController();
+  final _focusNode = FocusNode();
   bool _canSubmit = false;
+  bool _focused = false;
 
   @override
   void initState() {
@@ -38,11 +40,20 @@ class _CategoryLogInputState extends State<CategoryLogInput> {
       final valid = parsed != null && parsed > 0;
       if (valid != _canSubmit) setState(() => _canSubmit = valid);
     });
+    // The hint and the suffix sit side by side in a box this narrow, so
+    // leaving the hint up on focus reads as "min min". Drop it the moment the
+    // field is tapped rather than waiting for the first keystroke.
+    _focusNode.addListener(() {
+      if (_focusNode.hasFocus != _focused) {
+        setState(() => _focused = _focusNode.hasFocus);
+      }
+    });
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -63,9 +74,12 @@ class _CategoryLogInputState extends State<CategoryLogInput> {
     return Row(
       children: [
         SizedBox(
-          width: 92,
+          // Wider once focused: the suffix spells the unit out while typing,
+          // and 'hours' needs the room that a bare 'h' did not.
+          width: _focused && isHours ? 116 : 92,
           child: TextField(
             controller: _controller,
+            focusNode: _focusNode,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
@@ -75,8 +89,10 @@ class _CategoryLogInputState extends State<CategoryLogInput> {
             style: theme.textTheme.bodyMedium,
             decoration: InputDecoration(
               isDense: true,
-              hintText: isHours ? 'hours' : 'mins',
-              suffixText: isHours ? 'h' : 'min',
+              hintText: _focused ? null : (isHours ? 'hours' : 'min'),
+              // Spelled out while the field is in use, where there is no hint
+              // beside it to collide with and the unit matters most.
+              suffixText: isHours ? (_focused ? 'hours' : 'h') : 'min',
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
               border: OutlineInputBorder(

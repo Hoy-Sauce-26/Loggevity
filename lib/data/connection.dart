@@ -54,14 +54,40 @@ void applyEncryption(Database db, String key) {
   db.execute('PRAGMA key = "x\'$key\'";');
 }
 
+/// The on-device database file. Its directory may not exist yet.
+Future<File> databaseFile() async {
+  final dir = await getApplicationDocumentsDirectory();
+  return File(p.join(dir.path, kDatabaseFileName));
+}
+
+/// Whether [file] holds real data.
+///
+/// A zero-length file is not a database - SQLite leaves one behind if it is
+/// interrupted before the first page is written, and treating it as existing
+/// would strand the app on a [MissingDatabaseKeyException] over a file with
+/// nothing in it.
+bool holdsData(File file) => file.existsSync() && file.lengthSync() > 0;
+
+/// Deletes the database and its write-ahead sidecars.
+///
+/// The only escape from a database whose key is gone: without the key the
+/// bytes are unreadable by anyone, so the choice is a fresh database or an app
+/// that cannot start. Destructive, and never called without the user asking.
+Future<void> deleteDatabaseFiles() async {
+  final file = await databaseFile();
+  for (final path in [file.path, '${file.path}-wal', '${file.path}-shm']) {
+    final f = File(path);
+    if (f.existsSync()) await f.delete();
+  }
+}
+
 /// Opens the encrypted on-device database.
 QueryExecutor openConnection() {
   return LazyDatabase(() async {
-    final dir = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dir.path, kDatabaseFileName));
+    final file = await databaseFile();
 
     final key = await DatabaseKeyManager(KeychainStore()).resolve(
-      databaseExists: file.existsSync(),
+      databaseExists: holdsData(file),
       databasePath: file.path,
     );
 

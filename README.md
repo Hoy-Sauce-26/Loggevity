@@ -18,7 +18,7 @@ leaves is a JSON or CSV export that you initiate.
 
 ```bash
 flutter pub get
-flutter test          # 147 tests, ~5s
+flutter test          # 158 tests, ~5s
 flutter analyze       # must be clean
 flutter run           # pick a device, or -d <id>
 ```
@@ -42,11 +42,10 @@ replacing them, so a dev build cannot clobber real data:
 | debug / profile | `com.nttech.loggevity.dev` | Loggevity Dev |
 | release | `com.nttech.loggevity` | Loggevity |
 
-Android does this via `applicationIdSuffix` in
-[`android/app/build.gradle.kts`](android/app/build.gradle.kts); iOS via
-per-configuration `PRODUCT_BUNDLE_IDENTIFIER` in the Xcode project. The two
-apps have separate containers and separate encryption keys, so **the dev build
-cannot read the release build's database.**
+Android via `applicationIdSuffix` in
+[`android/app/build.gradle.kts`](android/app/build.gradle.kts), iOS via
+per-configuration `PRODUCT_BUNDLE_IDENTIFIER`. Separate containers and separate
+keys, so **the dev build cannot read the release build's database.**
 
 ---
 
@@ -83,11 +82,9 @@ and `data/` knows nothing about `widgets/`.
 
 ## The scoring model
 
-This is the part you cannot infer from reading the code alone, and the part
-most likely to be "fixed" incorrectly. The definitive statement of the model is
-[`lib/scoring/`](lib/scoring/) together with the tests that pin it — change a
-curve, a weight, or the divisor and those tests are what tell you what you
-broke.
+The part you cannot infer from the code alone, and the part most likely to be
+"fixed" incorrectly. [`lib/scoring/`](lib/scoring/) and the tests that pin it
+are the definitive statement of the model.
 
 ### Curves are scores, not hazard ratios
 
@@ -107,22 +104,18 @@ where `k` is the maximum achievable risk reduction for that category. An HR of
 | Vigorous PA | 0.15 | (0,0) (100,8.667) (215,**10**) (900,6.667) |
 | Resistance | 0.20 | (0,0) (15,4) (22,6.5) (45,**10**) (60,**10**) (80,8) (100,6.5) (140,0) (160,−2.5) (200,**−9**) |
 
-Two consequences worth internalising:
-
-- **Vigorous PA is a horseshoe** — benefit peaks at 215 min/week and declines
-  after.
-- **Resistance training goes negative.** Past 140 min/week it is a net harm in
-  this model, bottoming at −9 at 200 min. Sleep can reach −10. **Negative
-  sub-scores are intentional and are never clamped to zero.** A composite score
-  can legitimately be negative; the UI renders that rather than hiding it.
+- **Vigorous PA is a horseshoe** — benefit peaks at 215 min/week, then declines.
+- **Resistance training goes negative.** Past 140 min/week it is a net harm,
+  bottoming at −9 at 200 min; sleep can reach −10. **Negative sub-scores are
+  intentional and never clamped to zero.** A composite can legitimately be
+  negative, and the UI renders that rather than hiding it.
 
 The remaining four categories are linear to a weekly target, capped at 10:
 flexibility 45 min, nature 120 min, socializing 21 h, sleep (see below).
 
-Out-of-range inputs **clamp** to the terminal value: the curves are undefined
-beyond their last anchor and held flat. Extrapolating along the final segment
-instead would produce unbounded penalties — 300 min of resistance would score
-−25.25.
+Out-of-range inputs **clamp** to the terminal value; the curves are undefined
+beyond their last anchor. Extrapolating the final segment instead would give
+unbounded penalties — 300 min of resistance would score −25.25.
 
 ### Sleep
 
@@ -186,10 +179,9 @@ canonical reference week (Mon 2026-07-06 – Sun 2026-07-12):
 → 84.77%      (+200 min vigorous → 93.49%)
 ```
 
-Every sub-score is asserted to 9 decimal places. If you change a curve, a
-weight, or the divisor, **this test is the thing that tells you whether you
-broke the model.** A separate test re-derives all three curves
-from their hazard ratios, so the HR→score relationship stays provable.
+Every sub-score is asserted to 9 decimal places — **this is the test that tells
+you whether you broke the model.** A separate test re-derives all three curves
+from their hazard ratios, keeping the HR→score relationship provable.
 
 ---
 
@@ -230,8 +222,19 @@ Two guards, both of which fail closed:
   applied and before any write can occur.
 - **`MissingDatabaseKeyException`** — a database with no key throws rather than
   minting a replacement, which would render the file permanently unreadable and
-  silently destroy the user's history. With no account and no backend there is
-  no recovery path.
+  silently destroy the user's history.
+
+The key lives only in this device's keychain (`first_unlock_this_device`, so it
+is not in an iCloud backup), and it goes missing in two real situations: a
+restore onto another device, and a reinstall under different signing that
+leaves the app container's `Documents` intact. Neither is recoverable — nothing
+can decrypt the file — so `LockedDatabaseView` states that plainly and offers
+*Try again* (the keychain reads as absent until the device has been unlocked
+once since boot) and a confirmed *Start fresh* that deletes the file. The
+dashboard withholds logging, export and Trends while locked. A zero-length file
+does not count as an existing database; SQLite leaves one behind if interrupted
+before the first page is written, and it would otherwise strand the app on this
+error over nothing.
 
 **`flutter test` cannot prove encryption.** Host tests use an in-memory
 database and the plugin's native library never loads, so the Dart VM falls back
@@ -263,14 +266,14 @@ bump.
 ## Weekly sealing
 
 The app has no background execution, so nothing runs at midnight to notice a
-week ended. `WeekSealer` runs on launch
-(`sealOnLaunchProvider`) and walks **every** completed week since the first
-entry — the user may have been away for months, not one week.
+week ended. `WeekSealer` runs on launch (`sealOnLaunchProvider`) and walks
+**every** completed week since the first entry — the user may have been away
+for months, not one week.
 
 It is idempotent and recomputes rather than skipping weeks that already have a
-snapshot: a snapshot is derived data, so editing a past entry should correct
-history rather than leave it stale. Weeks with no entries are skipped entirely
-— a gap in logging is not a zero-scoring week.
+snapshot: a snapshot is derived data, so editing a past entry corrects history
+instead of leaving it stale. Weeks with no entries are skipped — a gap in
+logging is not a zero-scoring week.
 
 ---
 
@@ -303,14 +306,22 @@ Tapping a category opens `CategoryDetailSheet` — a day-by-day chart for that
 category, its own log input, and the week's entries grouped by day with
 edit/delete.
 
+**Logging is not assumed to be same-day.** `DaySelector` sits above the
+categories in the quick-log sheet and above the detail sheet's input; the edit
+dialog carries one too, so an entry on the wrong date can be moved. Days after
+today are disabled. Back-dating matters most for sleep: without it a night
+remembered the next afternoon both mis-credits today and scores the night it
+actually happened as missing. Back-dated entries keep the current time of day
+rather than landing at midnight, so the entry list stays ordered. The pickers
+cover the current week only — earlier weeks are sealed into snapshots, and
+editing them would mean re-sealing history.
+
 Two layout conventions worth knowing before changing anything:
 
-- **`FitHeight`** wraps screens that must not clip. It measures the laid-out
-  height and scales down uniformly if content overflows. This exists because
-  estimating content height does not work: the same widgets render taller on
-  Android than iOS, and text-scale settings move them again. Height budgets
-  built from constants are guesses, and guessing low pushes the last row off
-  the bottom.
+- **`FitHeight`** wraps screens that must not clip: it measures the laid-out
+  height and scales down uniformly on overflow. Estimating content height does
+  not work — the same widgets render taller on Android than iOS, and text-scale
+  settings move them again. Guessing low pushes the last row off the bottom.
 - **Vertical clearance, not narrowing.** The list reserves height beneath it
   for the floating button rather than shrinking the last row.
 
@@ -332,20 +343,19 @@ flutter test test/ui/dashboard_test.dart -r compact
 | --- | --- | --- |
 | Scoring | `test/scoring/` | 25 |
 | Data | `test/data/` | 86 |
-| UI | `test/ui/` | 36 |
-| | | **147** |
+| UI | `test/ui/` | 47 |
+| | | **158** |
 
 ### Gotchas that will cost you an hour
 
 - **Drift + widget tests deadlock if you await stream cancellation.** Drift
   defers stream cleanup to a zero-duration timer that cannot fire during widget
-  disposal. A hand-rolled `switchMap` whose `onCancel` awaited `inner.cancel()`
-  hung `pumpWidget` forever. Compose streams in Riverpod, which disposes
-  correctly, rather than by hand.
+  disposal; a hand-rolled `switchMap` awaiting `inner.cancel()` hung
+  `pumpWidget` forever. Compose streams in Riverpod, not by hand.
 - **Unmount inside the test body.** The framework checks for pending timers as
   soon as the body returns — before any `addTearDown` — so the tree must come
-  down while pumps are still available. Use the `withDashboard` helper, which
-  ends with `pumpWidget(SizedBox())` then a single bounded `pump`.
+  down while pumps are still available. The `withDashboard` helper ends with
+  `pumpWidget(SizedBox())` then a single bounded `pump`.
 - **Never `pumpAndSettle` after unmounting.** It pumps while frames stay
   scheduled and the drift teardown keeps rescheduling them. One
   `pump(Duration(milliseconds: 10))` is enough and cannot loop.

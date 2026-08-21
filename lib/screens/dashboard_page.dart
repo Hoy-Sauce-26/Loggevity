@@ -9,6 +9,7 @@ import '../providers.dart';
 import '../widgets/category_detail_sheet.dart';
 import '../widgets/category_progress_tile.dart';
 import '../widgets/fit_height.dart';
+import '../widgets/locked_database_view.dart';
 import '../widgets/quick_log_sheet.dart';
 import '../widgets/score_ring.dart';
 import 'analytics_page.dart';
@@ -60,10 +61,15 @@ class DashboardPage extends ConsumerWidget {
     // history unwritten.
     ref.watch(sealOnLaunchProvider);
 
+    // With no readable database there is nothing to log into, export, or
+    // chart, so the controls that would only fail are withheld.
+    final locked =
+        weekAsync.hasError && isMissingDatabaseKey(weekAsync.error!);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Loggevity'),
-        actions: [
+        actions: locked ? const [] : [
           IconButton(
             icon: const Icon(Icons.insights_outlined),
             tooltip: 'Trends',
@@ -103,15 +109,22 @@ class DashboardPage extends ConsumerWidget {
       body: SafeArea(
         child: weekAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Could not load this week: $e')),
+          // A missing database key is not a transient load failure: it has its
+          // own screen, because the raw exception gives the user nothing to
+          // act on.
+          error: (e, _) => isMissingDatabaseKey(e)
+              ? const LockedDatabaseView()
+              : Center(child: Text('Could not load this week: $e')),
           data: (metrics) => _WeekView(metrics: metrics),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => showQuickLogSheet(context),
-        icon: const Icon(Icons.add),
-        label: const Text('Log'),
-      ),
+      floatingActionButton: locked
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => showQuickLogSheet(context),
+              icon: const Icon(Icons.add),
+              label: const Text('Log'),
+            ),
     );
   }
 

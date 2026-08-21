@@ -11,6 +11,7 @@ import 'category_log_input.dart';
 import 'category_presentation.dart';
 import 'charts/chart_format.dart';
 import 'amount_dialog.dart';
+import 'day_selector.dart';
 
 /// Opens the day-by-day breakdown for one category.
 Future<void> showCategoryDetailSheet(
@@ -32,15 +33,34 @@ Future<void> showCategoryDetailSheet(
 /// daily breakdown - sleep is only special in that the scoring model consumes
 /// it per night. This is also the only place a mis-tapped amount can be
 /// corrected, so the entry list is the point of the screen, not the chart.
-class CategoryDetailSheet extends ConsumerWidget {
+class CategoryDetailSheet extends ConsumerStatefulWidget {
   const CategoryDetailSheet({super.key, required this.category});
 
   final ActivityCategory category;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CategoryDetailSheet> createState() =>
+      _CategoryDetailSheetState();
+}
+
+class _CategoryDetailSheetState extends ConsumerState<CategoryDetailSheet> {
+  /// Which day a new log from this sheet lands on. Null means today.
+  DateTime? _day;
+
+  DateTime get _today {
+    final now = ref.read(metricsRepositoryProvider).now();
+    return DateTime(now.year, now.month, now.day);
+  }
+
+  DateTime get _selectedDay => _day ?? _today;
+
+  @override
+  Widget build(BuildContext context) {
+    final category = widget.category;
     final theme = Theme.of(context);
     final week = ref.watch(currentWeekRangeProvider);
+    final today = _today;
+    final day = _selectedDay;
     final entriesAsync = ref.watch(categoryEntriesProvider(category));
 
     return ConstrainedBox(
@@ -94,11 +114,30 @@ class CategoryDetailSheet extends ConsumerWidget {
               // category, so a correction can be made without going back out
               // to the main screen. It sits between the chart and the entry
               // list, next to the entries a new log will join.
+              Text(
+                'Add to ${dayLabel(day, today)}',
+                style: theme.textTheme.labelMedium
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 6),
+              DaySelector(
+                week: week,
+                selected: localDateKey(day),
+                today: today,
+                onSelected: (picked) => setState(() => _day = picked),
+              ),
+              const SizedBox(height: 10),
               CategoryLogInput(
                 category: category,
-                onLog: (value, _) => ref
-                    .read(metricsRepositoryProvider)
-                    .log(category: category, value: value),
+                onLog: (value, _) {
+                  final now = ref.read(metricsRepositoryProvider).now();
+                  ref.read(metricsRepositoryProvider).log(
+                        category: category,
+                        value: value,
+                        occurredAt: DateTime(day.year, day.month, day.day,
+                            now.hour, now.minute),
+                      );
+                },
               ),
               const SizedBox(height: 20),
               if (entries.isEmpty)
@@ -113,7 +152,7 @@ class CategoryDetailSheet extends ConsumerWidget {
                   ),
                 )
               else
-                ..._entryList(context, ref, week, entries, theme),
+                ..._entryList(context, ref, week, entries, theme, today),
             ],
           );
         },
@@ -128,7 +167,9 @@ class CategoryDetailSheet extends ConsumerWidget {
     WeekRange week,
     List<DailyEntry> entries,
     ThemeData theme,
+    DateTime today,
   ) {
+    final category = widget.category;
     final byDay = <String, List<DailyEntry>>{};
     for (final e in entries) {
       byDay.putIfAbsent(e.localDate, () => []).add(e);
@@ -157,7 +198,12 @@ class CategoryDetailSheet extends ConsumerWidget {
         ),
       ));
       for (final entry in forDay) {
-        widgets.add(_EntryRow(category: category, entry: entry));
+        widgets.add(_EntryRow(
+          category: category,
+          entry: entry,
+          week: week,
+          today: today,
+        ));
       }
     }
     return widgets;
@@ -165,10 +211,17 @@ class CategoryDetailSheet extends ConsumerWidget {
 }
 
 class _EntryRow extends ConsumerWidget {
-  const _EntryRow({required this.category, required this.entry});
+  const _EntryRow({
+    required this.category,
+    required this.entry,
+    required this.week,
+    required this.today,
+  });
 
   final ActivityCategory category;
   final DailyEntry entry;
+  final WeekRange week;
+  final DateTime today;
 
   String get _time {
     final local = entry.occurredAt.toLocal();
@@ -178,16 +231,21 @@ class _EntryRow extends ConsumerWidget {
   }
 
   Future<void> _edit(BuildContext context, WidgetRef ref) async {
+    final local = entry.occurredAt.toLocal();
     final updated = await showAmountDialog(
       context,
       category: category,
       initialValue: entry.value,
       title: 'Edit ${category.label}',
+      week: week,
+      initialDay: DateTime(local.year, local.month, local.day),
+      today: today,
     );
     if (updated == null) return;
     await ref.read(metricsRepositoryProvider).updateEntry(
           entry.id,
-          value: updated,
+          value: updated.value,
+          day: updated.day,
         );
   }
 
