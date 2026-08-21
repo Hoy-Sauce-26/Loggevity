@@ -5,9 +5,9 @@ import 'package:loggevity/data/metrics_repository.dart';
 import 'package:loggevity/data/week.dart';
 import 'package:loggevity/scoring/scoring.dart';
 
-/// The seven rows of the source workbook's `Tracker` sheet, as a user would
-/// actually enter them: one log at a time, day by day.
-const trackerWeek = <int, Map<ActivityCategory, double>>{
+/// The canonical reference week, as a user would actually enter it: one log at
+/// a time, day by day.
+const referenceWeek = <int, Map<ActivityCategory, double>>{
   6: {
     ActivityCategory.moderatePA: 50,
     ActivityCategory.resistance: 25,
@@ -57,7 +57,7 @@ const trackerWeek = <int, Map<ActivityCategory, double>>{
 void main() {
   late AppDatabase db;
   late MetricsRepository repo;
-  // Sunday evening of Baseline Week 1, so the week reads as fully elapsed.
+  // Sunday evening of the reference week, so the week reads as fully elapsed.
   var now = DateTime(2026, 7, 12, 22);
 
   setUp(() {
@@ -66,8 +66,8 @@ void main() {
   });
   tearDown(() => db.close());
 
-  Future<void> seedTrackerWeek() async {
-    for (final entry in trackerWeek.entries) {
+  Future<void> seedReferenceWeek() async {
+    for (final entry in referenceWeek.entries) {
       for (final log in entry.value.entries) {
         await repo.log(
           category: log.key,
@@ -78,9 +78,9 @@ void main() {
     }
   }
 
-  group('Baseline Week 1, entered one log at a time', () {
-    test('aggregates back to the workbook totals', () async {
-      await seedTrackerWeek();
+  group('the reference week, entered one log at a time', () {
+    test('aggregates back to the expected weekly totals', () async {
+      await seedReferenceWeek();
       final m = await repo.loadWeek(WeekRange.containing(DateTime(2026, 7, 9)));
       expect(m.totals.moderateMinutes, 524);
       expect(m.totals.vigorousMinutes, 0);
@@ -93,7 +93,7 @@ void main() {
     });
 
     test('scores 84.77% end to end', () async {
-      await seedTrackerWeek();
+      await seedReferenceWeek();
       final m = await repo.loadWeek(WeekRange.containing(DateTime(2026, 7, 9)));
       expect(m.daysElapsed, 7);
       expect(m.full.compositePercent, closeTo(84.77, 0.005));
@@ -103,7 +103,7 @@ void main() {
     });
 
     test('entries outside the week are excluded', () async {
-      await seedTrackerWeek();
+      await seedReferenceWeek();
       await repo.log(
         category: ActivityCategory.moderatePA,
         value: 999,
@@ -194,7 +194,7 @@ void main() {
 
     test('entryCount tracks the underlying rows', () async {
       final week = WeekRange.containing(DateTime(2026, 7, 9));
-      await seedTrackerWeek();
+      await seedReferenceWeek();
       final m = await repo.loadWeek(week);
       expect(m.entryCount, 30);
       expect(m.isEmpty, isFalse);

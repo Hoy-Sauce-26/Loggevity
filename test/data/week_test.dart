@@ -19,7 +19,7 @@ void main() {
   });
 
   group('WeekRange with a Monday start', () {
-    // The source workbook's Baseline Week 1: Mon 2026-07-06 .. Sun 2026-07-12.
+    // The canonical reference week: Mon 2026-07-06 .. Sun 2026-07-12.
     final week = WeekRange.containing(DateTime(2026, 7, 9));
 
     test('snaps back to Monday', () {

@@ -14,7 +14,7 @@ import 'package:loggevity/widgets/score_ring.dart';
 void main() {
   late AppDatabase db;
   late MetricsRepository repo;
-  // Wednesday of Baseline Week 1, so three of seven days have elapsed.
+  // Wednesday of the reference week, so three of seven days have elapsed.
   final now = DateTime(2026, 7, 8, 20);
 
   setUp(() {

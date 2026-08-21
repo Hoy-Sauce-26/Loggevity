@@ -4,8 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 /// The scoring engine is the one part of Loggevity that must stay a pure,
 /// deterministic Dart library: no Flutter, no I/O, no clock, no platform.
-/// Task 1.1 calls for it to be standalone, and keeping it so is what lets the
-/// whole model be verified against the source workbook without a device.
+/// Keeping it standalone is what lets the whole model be verified without a
+/// device, a database, or a running app.
 void main() {
   test('nothing in lib/scoring imports Flutter or dart:io', () {
     final dir = Directory('lib/scoring');

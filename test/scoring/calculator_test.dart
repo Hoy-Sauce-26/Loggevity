@@ -3,8 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 
 const calc = HealthScoreCalculator();
 
-/// "Baseline Week 1" - the seven days on the `Tracker` sheet of the source
-/// workbook (2026-07-06 Mon through 2026-07-12 Sun).
+/// The canonical reference week: 2026-07-06 Mon through 2026-07-12 Sun.
+///
+/// These figures and the scores below are the fixed point of the whole model.
+/// If a change moves them, the change is wrong until proven otherwise.
 const baseline = WeeklyTotals(
   moderateMinutes: 524,
   vigorousMinutes: 0,
@@ -16,10 +18,10 @@ const baseline = WeeklyTotals(
 );
 
 void main() {
-  group('Baseline Week 1', () {
+  group('the reference week', () {
     final r = calc.calculate(baseline);
 
-    test('sub-scores match the spreadsheet row-for-row', () {
+    test('every sub-score holds to nine decimal places', () {
       expect(
           r[ActivityCategory.moderatePA].subScore, closeTo(7.396923077, 1e-9));
       expect(r[ActivityCategory.vigorousPA].subScore, 0.0);
@@ -96,8 +98,8 @@ void main() {
     });
 
     test('resistance, k = 0.20', () {
-      // Index 7 (140 min) is excluded: the workbook's HR cell there holds a
-      // placeholder 0.0, while its Score cell holds the authoritative 0.0.
+      // Index 7 (140 min) is excluded: its hazard ratio is a placeholder, and
+      // the score of 0.0 there is authoritative rather than derived.
       const hr = [1.0, 0.92, 0.87, 0.8, 0.8, 0.84, 0.87, null, 1.05, 1.18];
       for (var i = 0; i < hr.length; i++) {
         if (hr[i] == null) continue;

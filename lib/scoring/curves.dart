@@ -1,9 +1,9 @@
 /// Category definitions and lookup curves.
 ///
 /// Every curve below is a **score** curve (0-10 scale, and deliberately
-/// unbounded below). They derive from hazard ratios in the source workbook as
+/// unbounded below). They derive from hazard ratios as
 /// `score = (1 - HR) / k * 10`, where `k` is the maximum achievable HR
-/// reduction for that category. The HR columns themselves are *not* scores:
+/// reduction for that category. Hazard ratios themselves are *not* scores:
 /// a HR of 1.0 means "no benefit" and maps to a score of 0.
 library;
 

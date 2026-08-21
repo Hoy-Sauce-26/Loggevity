@@ -5,13 +5,13 @@ import 'package:loggevity/data/metrics_repository.dart';
 import 'package:loggevity/data/week_sealer.dart';
 import 'package:loggevity/scoring/scoring.dart';
 
-import 'metrics_repository_test.dart' show trackerWeek;
+import 'metrics_repository_test.dart' show referenceWeek;
 
 void main() {
   late AppDatabase db;
   late MetricsRepository repo;
   late WeekSealer sealer;
-  var now = DateTime(2026, 7, 15, 9); // the Wednesday after Baseline Week 1
+  var now = DateTime(2026, 7, 15, 9); // the Wednesday after the reference week
 
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
@@ -20,8 +20,8 @@ void main() {
   });
   tearDown(() => db.close());
 
-  Future<void> seedTrackerWeek() async {
-    for (final day in trackerWeek.entries) {
+  Future<void> seedReferenceWeek() async {
+    for (final day in referenceWeek.entries) {
       for (final log in day.value.entries) {
         await repo.log(
           category: log.key,
@@ -34,7 +34,7 @@ void main() {
 
   group('sealing a completed week', () {
     test('writes the composite and all seven sub-scores', () async {
-      await seedTrackerWeek();
+      await seedReferenceWeek();
       expect(await sealer.sealCompletedWeeks(), 1);
 
       final snapshot = await db.select(db.weeklySnapshots).getSingle();
@@ -52,7 +52,7 @@ void main() {
 
     test('records the week-start day in force at seal time', () async {
       await db.setWeekStartDay(DateTime.sunday);
-      await seedTrackerWeek();
+      await seedReferenceWeek();
       await sealer.sealCompletedWeeks();
 
       final snapshots = await db.select(db.weeklySnapshots).get();
@@ -62,7 +62,7 @@ void main() {
     });
 
     test('exposes sub-scores and weighted points by category', () async {
-      await seedTrackerWeek();
+      await seedReferenceWeek();
       await sealer.sealCompletedWeeks();
       final s = await db.select(db.weeklySnapshots).getSingle();
 
@@ -74,8 +74,8 @@ void main() {
 
   group('boundary behaviour', () {
     test('never seals the week in progress', () async {
-      now = DateTime(2026, 7, 8, 20); // mid Baseline Week 1
-      await seedTrackerWeek();
+      now = DateTime(2026, 7, 8, 20); // mid the reference week
+      await seedReferenceWeek();
 
       expect(await sealer.sealCompletedWeeks(), 0);
       expect(await db.select(db.weeklySnapshots).get(), isEmpty);
@@ -83,7 +83,7 @@ void main() {
 
     test('seals it once the boundary is crossed', () async {
       now = DateTime(2026, 7, 8, 20);
-      await seedTrackerWeek();
+      await seedReferenceWeek();
       expect(await sealer.sealCompletedWeeks(), 0);
 
       now = DateTime(2026, 7, 13, 0, 1); // the following Monday
@@ -137,7 +137,7 @@ void main() {
 
   group('idempotency', () {
     test('re-running does not duplicate rows', () async {
-      await seedTrackerWeek();
+      await seedReferenceWeek();
       await sealer.sealCompletedWeeks();
       await sealer.sealCompletedWeeks();
       await sealer.sealCompletedWeeks();
@@ -147,7 +147,7 @@ void main() {
 
     test('editing a past week corrects its snapshot on the next seal',
         () async {
-      await seedTrackerWeek();
+      await seedReferenceWeek();
       await sealer.sealCompletedWeeks();
       final before = await db.select(db.weeklySnapshots).getSingle();
       expect(before.scoreVigPA, 0);
